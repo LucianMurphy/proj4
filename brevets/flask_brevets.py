@@ -51,15 +51,25 @@ def _calc_times():
     described at https://rusa.org/octime_alg.html.
     Expects one URL-encoded argument, the number of miles.
     """
-    app.logger.debug("Got a JSON request")
-    km = request.args.get('km', 999, type=float)
+    app.logger.debug("Got a JSON request: {}".format(request.args))
+    km = request.args.get('km', type=float)
+    brevet_dist = request.args.get('brevet_dist_km', 200, type = int)
+    begin_date = request.args.get('begin_date', '2017-01-01')
+    begin_time = request.args.get('begin_time', '00:00')
     app.logger.debug("km={}".format(km))
     app.logger.debug("request.args: {}".format(request.args))
     # FIXME: These probably aren't the right open and close times
     # and brevets may be longer than 200km
-    open_time = acp_times.open_time(km, 200, arrow.now().isoformat)
-    close_time = acp_times.close_time(km, 200, arrow.now().isoformat)
-    result = {"open": open_time, "close": close_time}
+    if km is None:
+        return flask.jsonify(result ={"error": "Distance must be a number"})
+    try:
+        start = arrow.get("{} {}".format(begin_date, begin_time), "YYYY-MM-DD HH:mm")
+        result = {
+            "open": acp_times.open_time(km, brevet_dist, start.isoformat()),
+            "close": acp_times.close_time(km, brevet_dist, start.isoformat()),
+        }
+    except (ValueError, arrow.parser.ParserError) as err:
+        result = {"error": str(err)}
     return flask.jsonify(result=result)
 
 
